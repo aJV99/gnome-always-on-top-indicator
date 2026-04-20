@@ -1,0 +1,13 @@
+# Build artifacts
+*.shell-extension.zip
+schemas/gschemas.compiled
+
+# Translations
+po/*.mo
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
