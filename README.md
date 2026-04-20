@@ -1,33 +1,93 @@
 # Always On Top Indicator
 
-GNOME Shell extension that adds visual accent borders to windows set as always-on-top.
+GNOME Shell extension that draws a coloured border around windows set as always-on-top.
 
 https://extensions.gnome.org/extension/8561/always-on-top-indicator/
 
+> Maintained fork of [perosredo/gnome-always-on-top-indicator](https://github.com/perosredo/gnome-always-on-top-indicator).
+
 ## Features
 
-- 1px-10px customizable border thickness  
-- Respects GNOME accent color theme
+- Visible border on any window you toggle to always-on-top
+- Configurable border thickness (0.25–10 px)
+- Lives in the preferences dialog — no config files to touch
 
 ## Installation
 
+### From source
+
 ```bash
-git clone https://github.com/perosredo/gnome-always-on-top-indicator.git
+git clone https://github.com/aJV99/gnome-always-on-top-indicator.git
 cd gnome-always-on-top-indicator
-ln -sf $(pwd) ~/.local/share/gnome-shell/extensions/always-on-top-indicator@sredojevic.ca
+make install
 ```
 
-Restart GNOME Shell (`Alt+F2`, type `r`) or log in/out if on Wayland and enable via Extensions app.
+Restart GNOME Shell (`Alt+F2`, then `r`) on X11, or log out and back in on Wayland. Then enable the extension:
+
+```bash
+gnome-extensions enable always-on-top-indicator@sredojevic.ca
+```
+
+…or toggle it on in the **Extensions** app.
+
+### Uninstall
+
+```bash
+make uninstall
+```
 
 ## Requirements
 
-- GNOME Shell 45-48
+- GNOME Shell 45–48
 - Wayland or X11
+
+## Roadmap
+
+This fork is actively adopting the upstream project, fixing known bugs, and targeting a new release on extensions.gnome.org. Progress is tracked in [CHANGELOG.md](CHANGELOG.md).
+
+### Phase 0 — Housekeeping ✅
+- `.gitignore`, `LICENSE`, `CHANGELOG.md`, `Makefile`
+- Untrack generated build artifacts
+
+### Phase 1 — Correctness fixes
+- Stop borders from leaking across workspaces
+- Collapse duplicate per-window bookkeeping
+- Allow dialog and utility windows, not only normal ones
+- Remove unused imports and misleading identifiers
+
+### Phase 2 — Features
+- Real GNOME accent-color integration (GNOME 47+)
+- Configurable colour, opacity, and corner radius
+- Move inline styles into a proper stylesheet
+
+### Phase 3 — Bundled default keybinding
+- Ship `Super+Ctrl+T` as a default always-on-top shortcut so non-technical users don't need to run `gsettings` manually
+- Rebindable from the preferences page
+
+### Phase 4 — Internationalisation
+- `po/` scaffolding and translator-friendly build targets
+
+### Phase 5 — CI and release pipeline
+- GitHub Actions: pack the extension, validate schemas, attach the artifact on tagged releases
+
+### Phase 6 — GNOME Extensions submission
+- New UUID owned by this fork
+- Submit to extensions.gnome.org
 
 ## Development
 
-Developed entirely by Claude with micromanagement from PS.
+Originally developed by Claude with micromanagement from PS. Fork now maintained by [@aJV99](https://github.com/aJV99).
+
+Build targets:
+
+```bash
+make schemas    # compile GSettings schemas
+make pack       # produce a .shell-extension.zip
+make install    # install for the current user
+make uninstall  # remove for the current user
+make clean      # remove build artifacts
+```
 
 ## License
 
-GPL-3.0
+GPL-3.0 — see [LICENSE](LICENSE).
