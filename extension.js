@@ -22,6 +22,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._borderWidth = this._settings.get_double('border-thickness');
+        this._overviewActive = Main.overview.visible;
 
         this._settingsChangedId = this._settings.connect(
             'changed::border-thickness',
@@ -37,6 +38,15 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             'workspace-switched',
             () => this._refreshAll()
         );
+
+        this._overviewShowingId = Main.overview.connect('showing', () => {
+            this._overviewActive = true;
+            this._refreshAll();
+        });
+        this._overviewHiddenId = Main.overview.connect('hidden', () => {
+            this._overviewActive = false;
+            this._refreshAll();
+        });
 
         for (const actor of global.get_window_actors()) {
             const win = actor.meta_window;
@@ -60,6 +70,16 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         if (this._workspaceSwitchedId) {
             global.workspace_manager.disconnect(this._workspaceSwitchedId);
             this._workspaceSwitchedId = null;
+        }
+
+        if (this._overviewShowingId) {
+            Main.overview.disconnect(this._overviewShowingId);
+            this._overviewShowingId = null;
+        }
+
+        if (this._overviewHiddenId) {
+            Main.overview.disconnect(this._overviewHiddenId);
+            this._overviewHiddenId = null;
         }
 
         for (const metaWindow of [...this._windows.keys()])
@@ -123,6 +143,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     _shouldShowBorder(metaWindow) {
+        if (this._overviewActive)
+            return false;
         if (!metaWindow.is_above())
             return false;
         if (metaWindow.minimized)
@@ -130,7 +152,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
         const activeWs = global.workspace_manager.get_active_workspace();
         const winWs = metaWindow.get_workspace();
-        if (winWs && winWs !== activeWs && !metaWindow.is_on_all_workspaces())
+        if (winWs && winWs !== activeWs && !metaWindow.on_all_workspaces)
             return false;
 
         return true;
@@ -171,7 +193,11 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             style: this._borderStyle(),
         });
         this._applyGeometry(actor, metaWindow);
-        Main.layoutManager.addChrome(actor, {affectsInputRegion: false});
+        Main.layoutManager.addChrome(actor, {
+            affectsInputRegion: false,
+            affectsStruts: false,
+            trackFullscreen: false,
+        });
 
         const sizeChangedId = metaWindow.connect('size-changed',
             () => this._applyGeometry(actor, metaWindow));

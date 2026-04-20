@@ -22,7 +22,13 @@ cd gnome-always-on-top-indicator
 make install
 ```
 
-Restart GNOME Shell (`Alt+F2`, then `r`) on X11, or log out and back in on Wayland. Then enable the extension in the **Extensions** app.
+Restart GNOME Shell (`Alt+F2`, then `r`) on X11, or log out and back in on Wayland. Then enable the extension:
+
+```bash
+gnome-extensions enable always-on-top-indicator@sredojevic.ca
+```
+
+…or toggle it on in the **Extensions** app.
 
 ### Uninstall
 

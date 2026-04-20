@@ -3,7 +3,7 @@ EXTENSIONS_DIR := $(HOME)/.local/share/gnome-shell/extensions
 INSTALL_DIR    := $(EXTENSIONS_DIR)/$(UUID)
 
 SOURCES := extension.js prefs.js metadata.json
-SCHEMA_SRC := schemas/org.gnome.shell.extensions.always-on-top-indicator.gschema.xml
+SCHEMA_SRC := $(wildcard schemas/*.gschema.xml)
 SCHEMA_COMPILED := schemas/gschemas.compiled
 
 .PHONY: all schemas pack install uninstall clean help
@@ -31,10 +31,13 @@ pack: schemas
 		.
 
 install: schemas
+	rm -rf $(INSTALL_DIR)
 	mkdir -p $(INSTALL_DIR)
 	cp -r $(SOURCES) schemas $(INSTALL_DIR)/
 	@echo "Installed to $(INSTALL_DIR)"
-	@echo "Restart GNOME Shell (Alt+F2, r) on X11 or log out/in on Wayland, then enable the extension."
+	@echo "Restart GNOME Shell (Alt+F2, r) on X11 or log out/in on Wayland."
+	@echo "Then enable with: gnome-extensions enable $(UUID)"
+	@echo "  or toggle it on in the Extensions app."
 
 uninstall:
 	rm -rf $(INSTALL_DIR)
