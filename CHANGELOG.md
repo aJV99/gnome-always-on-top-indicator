@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Configurable border colour via a colour picker in preferences (hex; default `#bd93f9`).
+- Configurable border opacity (0.0–1.0) and corner radius (0–20 px) in preferences.
+
+### Changed
+- Settings changes now flow through a single `changed` handler that reloads every key and restyles live borders, replacing the thickness-only handler.
+
+### Added
 - `.gitignore`, `LICENSE` (GPL-3.0), `CHANGELOG.md`, and `Makefile` for a consistent build and release workflow.
 - Borders now apply to dialog, modal dialog, and utility windows in addition to normal windows.
 - Border visibility reacts to workspace switches and to the window changing workspace.

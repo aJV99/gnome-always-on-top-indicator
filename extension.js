@@ -4,14 +4,27 @@ import Meta from 'gi://Meta';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const BORDER_COLOR = 'rgba(189, 147, 249, 1)';
-
 const SUPPORTED_WINDOW_TYPES = new Set([
     Meta.WindowType.NORMAL,
     Meta.WindowType.DIALOG,
     Meta.WindowType.MODAL_DIALOG,
     Meta.WindowType.UTILITY,
 ]);
+
+const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
+const FALLBACK_COLOR = {r: 189, g: 147, b: 249};
+
+function parseHexColor(hex) {
+    const match = HEX_COLOR_RE.exec(hex ?? '');
+    if (!match)
+        return FALLBACK_COLOR;
+    const v = match[1];
+    return {
+        r: parseInt(v.substring(0, 2), 16),
+        g: parseInt(v.substring(2, 4), 16),
+        b: parseInt(v.substring(4, 6), 16),
+    };
+}
 
 export default class AlwaysOnTopIndicatorExtension extends Extension {
     constructor(metadata) {
@@ -21,13 +34,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
     enable() {
         this._settings = this.getSettings();
-        this._borderWidth = this._settings.get_double('border-thickness');
         this._overviewActive = Main.overview.visible;
+        this._loadSettings();
 
-        this._settingsChangedId = this._settings.connect(
-            'changed::border-thickness',
-            () => this._onThicknessChanged()
-        );
+        this._settingsChangedId = this._settings.connect('changed', () => {
+            this._loadSettings();
+            this._restyleAll();
+        });
 
         this._windowCreatedId = global.display.connect(
             'window-created',
@@ -87,12 +100,14 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         this._windows.clear();
     }
 
-    _onThicknessChanged() {
-        const newWidth = this._settings.get_double('border-thickness');
-        if (newWidth === this._borderWidth)
-            return;
-        this._borderWidth = newWidth;
+    _loadSettings() {
+        this._borderWidth = this._settings.get_double('border-thickness');
+        this._borderColor = parseHexColor(this._settings.get_string('border-color'));
+        this._borderOpacity = this._settings.get_double('border-opacity');
+        this._cornerRadius = this._settings.get_double('corner-radius');
+    }
 
+    _restyleAll() {
         for (const [metaWindow, state] of this._windows) {
             if (state.border) {
                 state.border.actor.set_style(this._borderStyle());
@@ -166,7 +181,11 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     _borderStyle() {
-        return `border: ${this._borderWidth}px solid ${BORDER_COLOR}; background-color: transparent;`;
+        const {r, g, b} = this._borderColor;
+        const color = `rgba(${r}, ${g}, ${b}, ${this._borderOpacity})`;
+        return `border: ${this._borderWidth}px solid ${color};` +
+               `border-radius: ${this._cornerRadius}px;` +
+               `background-color: transparent;`;
     }
 
     _applyGeometry(actor, metaWindow) {
