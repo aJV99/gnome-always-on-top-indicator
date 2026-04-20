@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Configurable border colour via a colour picker in preferences (hex; default `#bd93f9`).
 - Configurable border opacity (0.0–1.0) and corner radius (0–20 px) in preferences.
+- GNOME 47+ accent-color integration: borders can now match the desktop accent colour automatically and update when the user changes it. Exposed as a "Use System Accent Colour" switch in preferences (disabled with a hint on GNOME 45/46).
 
 ### Changed
 - Settings changes now flow through a single `changed` handler that reloads every key and restyles live borders, replacing the thickness-only handler.
+- Custom colour picker is dimmed in preferences while the accent-colour toggle is on, so it's obvious which value is being used.
 
 ### Added
 - `.gitignore`, `LICENSE` (GPL-3.0), `CHANGELOG.md`, and `Makefile` for a consistent build and release workflow.

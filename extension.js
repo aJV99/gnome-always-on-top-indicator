@@ -1,8 +1,24 @@
 import St from 'gi://St';
 import Meta from 'gi://Meta';
+import Gio from 'gi://Gio';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+const INTERFACE_SCHEMA = 'org.gnome.desktop.interface';
+const ACCENT_COLOR_KEY = 'accent-color';
+
+const GNOME_ACCENT_COLORS = {
+    blue:   '#3584e4',
+    teal:   '#2190a4',
+    green:  '#3a944a',
+    yellow: '#c88800',
+    orange: '#ed5b00',
+    red:    '#e62d42',
+    pink:   '#d56199',
+    purple: '#9141ac',
+    slate:  '#6f8396',
+};
 
 const SUPPORTED_WINDOW_TYPES = new Set([
     Meta.WindowType.NORMAL,
@@ -35,12 +51,28 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._overviewActive = Main.overview.visible;
+
+        const ifaceSchema = Gio.SettingsSchemaSource.get_default()
+            .lookup(INTERFACE_SCHEMA, true);
+        this._accentColorAvailable = !!ifaceSchema && ifaceSchema.has_key(ACCENT_COLOR_KEY);
+        this._ifaceSettings = new Gio.Settings({schema: INTERFACE_SCHEMA});
+
         this._loadSettings();
 
         this._settingsChangedId = this._settings.connect('changed', () => {
             this._loadSettings();
             this._restyleAll();
         });
+
+        if (this._accentColorAvailable) {
+            this._ifaceChangedId = this._ifaceSettings.connect(
+                `changed::${ACCENT_COLOR_KEY}`,
+                () => {
+                    this._loadSettings();
+                    this._restyleAll();
+                }
+            );
+        }
 
         this._windowCreatedId = global.display.connect(
             'window-created',
@@ -75,6 +107,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         }
         this._settings = null;
 
+        if (this._ifaceChangedId) {
+            this._ifaceSettings.disconnect(this._ifaceChangedId);
+            this._ifaceChangedId = null;
+        }
+        this._ifaceSettings = null;
+        this._accentColorAvailable = false;
+
         if (this._windowCreatedId) {
             global.display.disconnect(this._windowCreatedId);
             this._windowCreatedId = null;
@@ -102,9 +141,19 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
     _loadSettings() {
         this._borderWidth = this._settings.get_double('border-thickness');
-        this._borderColor = parseHexColor(this._settings.get_string('border-color'));
         this._borderOpacity = this._settings.get_double('border-opacity');
         this._cornerRadius = this._settings.get_double('corner-radius');
+        this._borderColor = parseHexColor(this._resolveColorHex());
+    }
+
+    _resolveColorHex() {
+        if (this._settings.get_boolean('use-accent-color') && this._accentColorAvailable) {
+            const name = this._ifaceSettings.get_string(ACCENT_COLOR_KEY);
+            const hex = GNOME_ACCENT_COLORS[name];
+            if (hex)
+                return hex;
+        }
+        return this._settings.get_string('border-color');
     }
 
     _restyleAll() {

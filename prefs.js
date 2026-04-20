@@ -27,11 +27,26 @@ export default class AlwaysOnTopIndicatorPreferences extends ExtensionPreference
         });
         window.add(page);
 
+        const ifaceSchema = Gio.SettingsSchemaSource.get_default()
+            .lookup('org.gnome.desktop.interface', true);
+        const accentColorAvailable = !!ifaceSchema && ifaceSchema.has_key('accent-color');
+
         const group = new Adw.PreferencesGroup({
             title: _('Appearance'),
             description: _('Configure the appearance of the border'),
         });
         page.add(group);
+
+        const accentRow = new Adw.SwitchRow({
+            title: _('Use System Accent Colour'),
+            subtitle: accentColorAvailable
+                ? _('Match the GNOME desktop accent colour.')
+                : _('Requires GNOME 47 or newer.'),
+            sensitive: accentColorAvailable,
+        });
+        group.add(accentRow);
+        settings.bind('use-accent-color', accentRow, 'active',
+            Gio.SettingsBindFlags.DEFAULT);
 
         const thicknessRow = new Adw.SpinRow({
             title: _('Border Thickness'),
@@ -66,11 +81,13 @@ export default class AlwaysOnTopIndicatorPreferences extends ExtensionPreference
 
         const colorRow = new Adw.ActionRow({
             title: _('Border Color'),
-            subtitle: _('Colour of the always-on-top border'),
+            subtitle: _('Used when the system accent colour is disabled.'),
             activatable_widget: colorButton,
         });
         colorRow.add_suffix(colorButton);
         group.add(colorRow);
+        settings.bind('use-accent-color', colorRow, 'sensitive',
+            Gio.SettingsBindFlags.GET | Gio.SettingsBindFlags.INVERT_BOOLEAN);
 
         const opacityRow = new Adw.SpinRow({
             title: _('Border Opacity'),
