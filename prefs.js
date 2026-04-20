@@ -5,10 +5,12 @@ import Adw from 'gi://Adw';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
+const DEFAULT_COLOR_HEX = '#bd93f9';
+
 function hexToRgba(hex) {
     const rgba = new Gdk.RGBA();
     if (!rgba.parse(hex))
-        rgba.parse('#bd93f9');
+        rgba.parse(DEFAULT_COLOR_HEX);
     return rgba;
 }
 
@@ -45,8 +47,15 @@ export default class AlwaysOnTopIndicatorPreferences extends ExtensionPreference
             sensitive: accentColorAvailable,
         });
         group.add(accentRow);
-        settings.bind('use-accent-color', accentRow, 'active',
-            Gio.SettingsBindFlags.DEFAULT);
+        if (accentColorAvailable) {
+            settings.bind('use-accent-color', accentRow, 'active',
+                Gio.SettingsBindFlags.DEFAULT);
+        } else {
+            // Key exists in our schema but cannot take effect on this GNOME
+            // version; present it as off so the UI matches the colour that
+            // actually drives the border.
+            accentRow.active = false;
+        }
 
         const thicknessRow = new Adw.SpinRow({
             title: _('Border Thickness'),
@@ -86,8 +95,10 @@ export default class AlwaysOnTopIndicatorPreferences extends ExtensionPreference
         });
         colorRow.add_suffix(colorButton);
         group.add(colorRow);
-        settings.bind('use-accent-color', colorRow, 'sensitive',
-            Gio.SettingsBindFlags.GET | Gio.SettingsBindFlags.INVERT_BOOLEAN);
+        if (accentColorAvailable) {
+            settings.bind('use-accent-color', colorRow, 'visible',
+                Gio.SettingsBindFlags.GET | Gio.SettingsBindFlags.INVERT_BOOLEAN);
+        }
 
         const opacityRow = new Adw.SpinRow({
             title: _('Border Opacity'),

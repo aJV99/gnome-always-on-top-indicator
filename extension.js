@@ -8,6 +8,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 const INTERFACE_SCHEMA = 'org.gnome.desktop.interface';
 const ACCENT_COLOR_KEY = 'accent-color';
 
+// GNOME 47+ accent-color enum values, mapped to their libadwaita standalone
+// hex values. Source: libadwaita src/stylesheet/_colors_public.scss.
 const GNOME_ACCENT_COLORS = {
     blue:   '#3584e4',
     teal:   '#2190a4',
@@ -27,8 +29,11 @@ const SUPPORTED_WINDOW_TYPES = new Set([
     Meta.WindowType.UTILITY,
 ]);
 
+const DEFAULT_COLOR_HEX = '#bd93f9';
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
-const FALLBACK_COLOR = {r: 189, g: 147, b: 249};
+// Pre-parsed form of DEFAULT_COLOR_HEX, held separately so parseHexColor
+// does not need to parse itself on every malformed input.
+const FALLBACK_COLOR = {r: 0xbd, g: 0x93, b: 0xf9};
 
 function parseHexColor(hex) {
     const match = HEX_COLOR_RE.exec(hex ?? '');
@@ -55,21 +60,25 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         const ifaceSchema = Gio.SettingsSchemaSource.get_default()
             .lookup(INTERFACE_SCHEMA, true);
         this._accentColorAvailable = !!ifaceSchema && ifaceSchema.has_key(ACCENT_COLOR_KEY);
-        this._ifaceSettings = new Gio.Settings({schema: INTERFACE_SCHEMA});
+        this._ifaceSettings = this._accentColorAvailable
+            ? new Gio.Settings({settings_schema: ifaceSchema})
+            : null;
 
         this._loadSettings();
 
         this._settingsChangedId = this._settings.connect('changed', () => {
-            this._loadSettings();
-            this._restyleAll();
+            const {changed, widthChanged} = this._loadSettings();
+            if (changed)
+                this._restyleAll(widthChanged);
         });
 
-        if (this._accentColorAvailable) {
+        if (this._ifaceSettings) {
             this._ifaceChangedId = this._ifaceSettings.connect(
                 `changed::${ACCENT_COLOR_KEY}`,
                 () => {
-                    this._loadSettings();
-                    this._restyleAll();
+                    const {changed, widthChanged} = this._loadSettings();
+                    if (changed)
+                        this._restyleAll(widthChanged);
                 }
             );
         }
@@ -140,14 +149,35 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     _loadSettings() {
+        const prev = {
+            width: this._borderWidth,
+            opacity: this._borderOpacity,
+            radius: this._cornerRadius,
+            color: this._borderColor,
+        };
+
         this._borderWidth = this._settings.get_double('border-thickness');
         this._borderOpacity = this._settings.get_double('border-opacity');
         this._cornerRadius = this._settings.get_double('corner-radius');
         this._borderColor = parseHexColor(this._resolveColorHex());
+
+        const widthChanged = prev.width !== this._borderWidth;
+        const colorChanged = !prev.color
+            || prev.color.r !== this._borderColor.r
+            || prev.color.g !== this._borderColor.g
+            || prev.color.b !== this._borderColor.b;
+
+        return {
+            widthChanged,
+            changed: widthChanged
+                || prev.opacity !== this._borderOpacity
+                || prev.radius !== this._cornerRadius
+                || colorChanged,
+        };
     }
 
     _resolveColorHex() {
-        if (this._settings.get_boolean('use-accent-color') && this._accentColorAvailable) {
+        if (this._ifaceSettings && this._settings.get_boolean('use-accent-color')) {
             const name = this._ifaceSettings.get_string(ACCENT_COLOR_KEY);
             const hex = GNOME_ACCENT_COLORS[name];
             if (hex)
@@ -156,12 +186,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         return this._settings.get_string('border-color');
     }
 
-    _restyleAll() {
+    _restyleAll(reapplyGeometry = false) {
         for (const [metaWindow, state] of this._windows) {
-            if (state.border) {
-                state.border.actor.set_style(this._borderStyle());
+            if (!state.border)
+                continue;
+            state.border.actor.set_style(this._borderStyle());
+            if (reapplyGeometry)
                 this._applyGeometry(state.border.actor, metaWindow);
-            }
         }
     }
 
