@@ -1,10 +1,26 @@
 import St from 'gi://St';
 import Meta from 'gi://Meta';
+import Gio from 'gi://Gio';
 
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-const BORDER_COLOR = 'rgba(189, 147, 249, 1)';
+const INTERFACE_SCHEMA = 'org.gnome.desktop.interface';
+const ACCENT_COLOR_KEY = 'accent-color';
+
+// GNOME 47+ accent-color enum values, mapped to their libadwaita standalone
+// hex values. Source: libadwaita src/stylesheet/_colors_public.scss.
+const GNOME_ACCENT_COLORS = {
+    blue:   '#3584e4',
+    teal:   '#2190a4',
+    green:  '#3a944a',
+    yellow: '#c88800',
+    orange: '#ed5b00',
+    red:    '#e62d42',
+    pink:   '#d56199',
+    purple: '#9141ac',
+    slate:  '#6f8396',
+};
 
 const SUPPORTED_WINDOW_TYPES = new Set([
     Meta.WindowType.NORMAL,
@@ -12,6 +28,24 @@ const SUPPORTED_WINDOW_TYPES = new Set([
     Meta.WindowType.MODAL_DIALOG,
     Meta.WindowType.UTILITY,
 ]);
+
+const DEFAULT_COLOR_HEX = '#bd93f9';
+const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
+// Pre-parsed form of DEFAULT_COLOR_HEX, held separately so parseHexColor
+// does not need to parse itself on every malformed input.
+const FALLBACK_COLOR = {r: 0xbd, g: 0x93, b: 0xf9};
+
+function parseHexColor(hex) {
+    const match = HEX_COLOR_RE.exec(hex ?? '');
+    if (!match)
+        return FALLBACK_COLOR;
+    const v = match[1];
+    return {
+        r: parseInt(v.substring(0, 2), 16),
+        g: parseInt(v.substring(2, 4), 16),
+        b: parseInt(v.substring(4, 6), 16),
+    };
+}
 
 export default class AlwaysOnTopIndicatorExtension extends Extension {
     constructor(metadata) {
@@ -21,13 +55,33 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
     enable() {
         this._settings = this.getSettings();
-        this._borderWidth = this._settings.get_double('border-thickness');
         this._overviewActive = Main.overview.visible;
 
-        this._settingsChangedId = this._settings.connect(
-            'changed::border-thickness',
-            () => this._onThicknessChanged()
-        );
+        const ifaceSchema = Gio.SettingsSchemaSource.get_default()
+            .lookup(INTERFACE_SCHEMA, true);
+        this._accentColorAvailable = !!ifaceSchema && ifaceSchema.has_key(ACCENT_COLOR_KEY);
+        this._ifaceSettings = this._accentColorAvailable
+            ? new Gio.Settings({settings_schema: ifaceSchema})
+            : null;
+
+        this._loadSettings();
+
+        this._settingsChangedId = this._settings.connect('changed', () => {
+            const {changed, widthChanged} = this._loadSettings();
+            if (changed)
+                this._restyleAll(widthChanged);
+        });
+
+        if (this._ifaceSettings) {
+            this._ifaceChangedId = this._ifaceSettings.connect(
+                `changed::${ACCENT_COLOR_KEY}`,
+                () => {
+                    const {changed, widthChanged} = this._loadSettings();
+                    if (changed)
+                        this._restyleAll(widthChanged);
+                }
+            );
+        }
 
         this._windowCreatedId = global.display.connect(
             'window-created',
@@ -62,6 +116,13 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         }
         this._settings = null;
 
+        if (this._ifaceChangedId) {
+            this._ifaceSettings.disconnect(this._ifaceChangedId);
+            this._ifaceChangedId = null;
+        }
+        this._ifaceSettings = null;
+        this._accentColorAvailable = false;
+
         if (this._windowCreatedId) {
             global.display.disconnect(this._windowCreatedId);
             this._windowCreatedId = null;
@@ -87,17 +148,51 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         this._windows.clear();
     }
 
-    _onThicknessChanged() {
-        const newWidth = this._settings.get_double('border-thickness');
-        if (newWidth === this._borderWidth)
-            return;
-        this._borderWidth = newWidth;
+    _loadSettings() {
+        const prev = {
+            width: this._borderWidth,
+            opacity: this._borderOpacity,
+            radius: this._cornerRadius,
+            color: this._borderColor,
+        };
 
+        this._borderWidth = this._settings.get_double('border-thickness');
+        this._borderOpacity = this._settings.get_double('border-opacity');
+        this._cornerRadius = this._settings.get_double('corner-radius');
+        this._borderColor = parseHexColor(this._resolveColorHex());
+
+        const widthChanged = prev.width !== this._borderWidth;
+        const colorChanged = !prev.color
+            || prev.color.r !== this._borderColor.r
+            || prev.color.g !== this._borderColor.g
+            || prev.color.b !== this._borderColor.b;
+
+        return {
+            widthChanged,
+            changed: widthChanged
+                || prev.opacity !== this._borderOpacity
+                || prev.radius !== this._cornerRadius
+                || colorChanged,
+        };
+    }
+
+    _resolveColorHex() {
+        if (this._ifaceSettings && this._settings.get_boolean('use-accent-color')) {
+            const name = this._ifaceSettings.get_string(ACCENT_COLOR_KEY);
+            const hex = GNOME_ACCENT_COLORS[name];
+            if (hex)
+                return hex;
+        }
+        return this._settings.get_string('border-color');
+    }
+
+    _restyleAll(reapplyGeometry = false) {
         for (const [metaWindow, state] of this._windows) {
-            if (state.border) {
-                state.border.actor.set_style(this._borderStyle());
+            if (!state.border)
+                continue;
+            state.border.actor.set_style(this._borderStyle());
+            if (reapplyGeometry)
                 this._applyGeometry(state.border.actor, metaWindow);
-            }
         }
     }
 
@@ -166,7 +261,11 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
     }
 
     _borderStyle() {
-        return `border: ${this._borderWidth}px solid ${BORDER_COLOR}; background-color: transparent;`;
+        const {r, g, b} = this._borderColor;
+        const color = `rgba(${r}, ${g}, ${b}, ${this._borderOpacity})`;
+        return `border: ${this._borderWidth}px solid ${color};` +
+               `border-radius: ${this._cornerRadius}px;` +
+               `background-color: transparent;`;
     }
 
     _applyGeometry(actor, metaWindow) {
