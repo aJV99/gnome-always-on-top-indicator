@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- GNOME 50 compatibility declared in `metadata.json` (supports Fedora 44).
 - GNOME 49 compatibility declared in `metadata.json` (fixes Fedora 43).
 - Configurable border colour via a colour picker in preferences (hex; default `#bd93f9`).
 - Configurable border opacity (0.0–1.0) and corner radius (0–20 px) in preferences.
