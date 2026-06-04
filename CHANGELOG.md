@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Borders hide while the Activities overview is open and restore when it closes.
 
 ### Changed
+- Borders are now parented onto each window's own `Meta.WindowActor` (via `get_compositor_private()`) instead of `Main.layoutManager.addChrome`. The border moves, stacks, and animates together with its window — including workspace-switch and minimise animations — rather than chasing it from the chrome layer. Geometry is computed in window-actor-local coordinates, translating the frame rect against the buffer rect so the border hugs the visible window rather than any client-side-decoration shadow.
 - Settings changes now flow through a single `changed` handler that reloads every key and restyles live borders, replacing the thickness-only handler. The handler short-circuits when no border-affecting value actually changed, and only re-applies window geometry when thickness changed.
 - Custom colour picker is hidden in preferences while the accent-colour toggle is on, and the accent toggle shows as off (with its "Requires GNOME 47 or newer" hint) on older GNOME versions — so the UI always reflects the colour actually driving the border.
 - `Gio.Settings` for `org.gnome.desktop.interface` is now constructed only when the `accent-color` key is available, using the schema handle returned by the availability probe.

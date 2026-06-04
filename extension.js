@@ -270,9 +270,17 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
     _applyGeometry(actor, metaWindow) {
         try {
-            const rect = metaWindow.get_frame_rect();
-            actor.set_position(rect.x - this._borderWidth, rect.y - this._borderWidth);
-            actor.set_size(rect.width + 2 * this._borderWidth, rect.height + 2 * this._borderWidth);
+            // The border is a child of the window actor, whose origin is the
+            // buffer-rect origin (buffer includes any client-side-decoration
+            // shadow margins). Translate the frame rect into that local space
+            // so the border hugs the visible window, not the shadow.
+            const frame = metaWindow.get_frame_rect();
+            const buffer = metaWindow.get_buffer_rect();
+            actor.set_position(
+                frame.x - buffer.x - this._borderWidth,
+                frame.y - buffer.y - this._borderWidth
+            );
+            actor.set_size(frame.width + 2 * this._borderWidth, frame.height + 2 * this._borderWidth);
         } catch (_e) {
             // window may have been destroyed
         }
@@ -282,7 +290,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         const state = this._windows.get(metaWindow);
         if (!state || state.border)
             return;
-        if (!metaWindow.get_compositor_private())
+        const windowActor = metaWindow.get_compositor_private();
+        if (!windowActor)
             return;
 
         const actor = new St.Bin({
@@ -291,12 +300,11 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             track_hover: false,
             style: this._borderStyle(),
         });
+        // Parent the border onto the window's own actor so it moves, stacks,
+        // and animates (workspace switches, minimise) together with the window
+        // instead of chasing it from the chrome layer.
+        windowActor.add_child(actor);
         this._applyGeometry(actor, metaWindow);
-        Main.layoutManager.addChrome(actor, {
-            affectsInputRegion: false,
-            affectsStruts: false,
-            trackFullscreen: false,
-        });
 
         const sizeChangedId = metaWindow.connect('size-changed',
             () => this._applyGeometry(actor, metaWindow));
@@ -320,8 +328,12 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             metaWindow.disconnect(positionChangedId);
         } catch (_e) { /* gone */ }
 
-        Main.layoutManager.removeChrome(actor);
-        actor.destroy();
+        // destroy() also unparents the actor from the window actor. If the
+        // window actor was already torn down (unmanaged), the child is gone
+        // with it, so guard against operating on a destroyed actor.
+        try {
+            actor.destroy();
+        } catch (_e) { /* already destroyed with its window actor */ }
 
         state.border = null;
     }
