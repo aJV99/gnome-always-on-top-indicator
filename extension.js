@@ -275,6 +275,12 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             // shadow margins). Translate the frame rect into that local space
             // so the border hugs the visible window, not the shadow.
             const frame = metaWindow.get_frame_rect();
+            // A window that is unmapped or mid-teardown can report a degenerate
+            // frame rect; pushing that into set_size triggers Clutter "tried to
+            // allocate a size of -2147483648" warnings, so skip until the
+            // geometry is real.
+            if (!frame || frame.width <= 0 || frame.height <= 0)
+                return;
             const buffer = metaWindow.get_buffer_rect();
             actor.set_position(
                 frame.x - buffer.x - this._borderWidth,
@@ -295,6 +301,9 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             return;
 
         const actor = new St.Bin({
+            // Named so it is identifiable in Clutter allocation warnings
+            // (otherwise it logs as an anonymous "unnamed [StBin]").
+            name: 'always-on-top-indicator-border',
             reactive: false,
             can_focus: false,
             track_hover: false,
