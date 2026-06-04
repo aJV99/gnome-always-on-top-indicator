@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- GNOME 50 compatibility declared in `metadata.json` (supports Fedora 44).
 - GNOME 49 compatibility declared in `metadata.json` (fixes Fedora 43).
 - Configurable border colour via a colour picker in preferences (hex; default `#bd93f9`).
 - Configurable border opacity (0.0–1.0) and corner radius (0–20 px) in preferences.
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Borders hide while the Activities overview is open and restore when it closes.
 
 ### Changed
+- Borders are now parented onto each window's own `Meta.WindowActor` (via `get_compositor_private()`) instead of `Main.layoutManager.addChrome`. The border moves, stacks, and animates together with its window — including workspace-switch and minimise animations — rather than chasing it from the chrome layer. Geometry is computed in window-actor-local coordinates, translating the frame rect against the buffer rect so the border hugs the visible window rather than any client-side-decoration shadow. As a non-reactive child of the window actor the overlay inherently cannot steal input or affect the work area, so the old `addChrome` opt-outs are no longer needed. Geometry updates are skipped while a window reports a degenerate frame rect, avoiding Clutter allocation warnings during teardown.
 - Settings changes now flow through a single `changed` handler that reloads every key and restyles live borders, replacing the thickness-only handler. The handler short-circuits when no border-affecting value actually changed, and only re-applies window geometry when thickness changed.
 - Custom colour picker is hidden in preferences while the accent-colour toggle is on, and the accent toggle shows as off (with its "Requires GNOME 47 or newer" hint) on older GNOME versions — so the UI always reflects the colour actually driving the border.
 - `Gio.Settings` for `org.gnome.desktop.interface` is now constructed only when the `accent-color` key is available, using the schema handle returned by the availability probe.
@@ -26,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Untracked generated build artifacts (`*.shell-extension.zip`, `schemas/gschemas.compiled`); they are now produced by `make`.
 - Collapsed the separate border and signal-handler maps into a single per-window state record.
 - Extracted `_borderStyle` and `_applyGeometry` helpers to remove duplicated styling and geometry code.
-- `addChrome` is now called with `affectsInputRegion: false`, `affectsStruts: false`, and `trackFullscreen: false` so the overlay cannot steal input, shrink the work area, or linger over fullscreen windows.
 - Switched the on-all-workspaces check to the `on_all_workspaces` property for compatibility across Mutter versions.
 - Removed the unused `Gio` import; renamed `_windowAddedId` to `_windowCreatedId` to match the signal it tracks.
 - `make install` now clears the install directory first so stale files from older versions cannot linger; `SCHEMA_SRC` uses a wildcard so additional schemas rebuild automatically.
