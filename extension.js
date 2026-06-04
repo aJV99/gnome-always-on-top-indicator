@@ -209,6 +209,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
 
         const handlers = {
             above: metaWindow.connect('notify::above', () => this._updateWindowBorder(metaWindow)),
+            minimized: metaWindow.connect('notify::minimized', () => this._updateWindowBorder(metaWindow)),
             workspace: metaWindow.connect('workspace-changed', () => this._updateWindowBorder(metaWindow)),
             unmanaged: metaWindow.connect('unmanaged', () => this._cleanupWindow(metaWindow)),
         };
@@ -240,6 +241,8 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
         if (this._overviewActive)
             return false;
         if (!metaWindow.is_above())
+            return false;
+        if (metaWindow.minimized)
             return false;
 
         const activeWs = global.workspace_manager.get_active_workspace();
@@ -307,7 +310,7 @@ export default class AlwaysOnTopIndicatorExtension extends Extension {
             style: this._borderStyle(),
         });
         // Parent the border onto the window's own actor so it moves, stacks,
-        // and animates (e.g. workspace switches) together with the window
+        // and animates (workspace switches, minimise) together with the window
         // instead of chasing it from the chrome layer.
         windowActor.add_child(actor);
         this._applyGeometry(actor, metaWindow);
