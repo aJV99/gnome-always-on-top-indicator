@@ -55,11 +55,11 @@ This fork is actively adopting the upstream project, fixing known bugs, and targ
 - Allow dialog and utility windows, not only normal ones
 - Remove unused imports and misleading identifiers
 
-### Phase 2 — Features
+### Phase 2 — Features ✅
 - Real GNOME accent-color integration (GNOME 47+)
 - Configurable colour, opacity, and corner radius
 - Reparent the border onto the window actor so it tracks and animates with its window ✅
-- Move inline styles into a proper stylesheet
+- ~~Move inline styles into a proper stylesheet~~ — dropped: the border's colour, thickness, radius, and opacity are all user-configurable and must be applied inline via `set_style`, leaving nothing meaningful for a static stylesheet
 
 ### Phase 3 — Bundled default keybinding
 - Ship `Super+Ctrl+T` as a default always-on-top shortcut so non-technical users don't need to run `gsettings` manually
