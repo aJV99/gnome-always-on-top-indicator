@@ -49,7 +49,7 @@ This fork is actively adopting the upstream project, fixing known bugs, and targ
 - `.gitignore`, `LICENSE`, `CHANGELOG.md`, `Makefile`
 - Untrack generated build artifacts
 
-### Phase 1 — Correctness fixes
+### Phase 1 — Correctness fixes ✅
 - Stop borders from leaking across workspaces
 - Collapse duplicate per-window bookkeeping
 - Allow dialog and utility windows, not only normal ones
@@ -58,6 +58,7 @@ This fork is actively adopting the upstream project, fixing known bugs, and targ
 ### Phase 2 — Features
 - Real GNOME accent-color integration (GNOME 47+)
 - Configurable colour, opacity, and corner radius
+- Reparent the border onto the window actor so it tracks and animates with its window ✅
 - Move inline styles into a proper stylesheet
 
 ### Phase 3 — Bundled default keybinding
