@@ -2,9 +2,7 @@
 
 GNOME Shell extension that draws a coloured border around windows set as always-on-top.
 
-https://extensions.gnome.org/extension/8561/always-on-top-indicator/
-
-> Maintained fork of [perosredo/gnome-always-on-top-indicator](https://github.com/perosredo/gnome-always-on-top-indicator).
+> Maintained fork of [perosredo/gnome-always-on-top-indicator](https://github.com/perosredo/gnome-always-on-top-indicator). Not yet published on extensions.gnome.org; install from source (below).
 
 ## Features
 
@@ -25,7 +23,7 @@ make install
 Log out and back in (Wayland), then enable the extension:
 
 ```bash
-gnome-extensions enable always-on-top-indicator@sredojevic.ca
+gnome-extensions enable always-on-top-indicator@ajv99.github.io
 ```
 
 …or toggle it on in the **Extensions** app.

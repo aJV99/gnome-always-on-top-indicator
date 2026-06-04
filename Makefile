@@ -1,4 +1,4 @@
-UUID           := always-on-top-indicator@sredojevic.ca
+UUID           := always-on-top-indicator@ajv99.github.io
 EXTENSIONS_DIR := $(HOME)/.local/share/gnome-shell/extensions
 INSTALL_DIR    := $(EXTENSIONS_DIR)/$(UUID)
 
